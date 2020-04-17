@@ -1,4 +1,4 @@
-package com.br.libraryapi.api.model.entity;
+package com.br.libraryapi.model.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;

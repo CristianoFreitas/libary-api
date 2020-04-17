@@ -1,4 +1,4 @@
-package com.br.libraryapi.api.model.repository;
+package com.br.libraryapi.model.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,7 +11,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import com.br.libraryapi.api.model.entity.Book;
+import com.br.libraryapi.model.entity.Book;
+import com.br.libraryapi.model.repository.BookRepository;
 
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
@@ -44,5 +45,37 @@ public class BookRepositoryTest {
 		boolean exists = repository.existsByIsbn(isbn);	
 	
 		assertThat(exists).isFalse();
+	}
+	
+	@Test
+	@DisplayName("Deve salvar um livro")
+	public void saveBookTest() { 
+		
+		Book book = createNewBook("123");
+		
+		Book savedBook = repository.save(book);
+		
+		assertThat( savedBook.getId() ).isNotNull();
+			
+	}
+	
+	@Test
+	@DisplayName("Deve deletar um livro")
+	public void deleteBookTest() { 
+		
+		Book book = createNewBook("123");
+		entityManger.persist(book);
+		
+		Book foundBook = entityManger.find(Book.class, book.getId());
+		
+		repository.delete(foundBook);
+		
+		Book deletedBook = entityManger.find(Book.class, book.getId());
+		assertThat( deletedBook ).isNull(); 
+			
+	}
+	
+	private Book createNewBook(String isbn) {
+		return Book.builder().isbn(isbn).author("Beltrano").title("Aventuras").build();
 	}
 }
