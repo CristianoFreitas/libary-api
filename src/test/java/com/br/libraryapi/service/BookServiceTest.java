@@ -1,6 +1,9 @@
-package com.br.libraryapi.api.service;
+package com.br.libraryapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,11 +23,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import com.br.libraryapi.api.service.impl.BookServiceImpl;
 import com.br.libraryapi.exception.BusinessException;
 import com.br.libraryapi.model.entity.Book;
 import com.br.libraryapi.model.repository.BookRepository;
 import com.br.libraryapi.service.BookService;
+import com.br.libraryapi.service.impl.BookServiceImpl;
 
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test") 
@@ -195,7 +198,7 @@ public class BookServiceTest {
 		List<Book> list = Arrays.asList(book);
 		PageRequest pageRequest = PageRequest.of( 0, 10);
 		Page<Book> page = new PageImpl<Book>(list, pageRequest, 1);
-		Mockito.when( repository.findAll(Mockito.any(Example.class), Mockito.any(PageRequest.class)))
+		when( repository.findAll(Mockito.any(Example.class), Mockito.any(PageRequest.class)))
 				.thenReturn(page);
 		
 		Page<Book> result = service.find( book, pageRequest);
@@ -209,6 +212,21 @@ public class BookServiceTest {
 	
 	private Book createValidBook() {
 		return Book.builder().isbn("123").author("Beltrano").title("Aventuras").build();
+	}
+	
+	@Test
+	@DisplayName("deve obter um livro pelo isbn")
+	public void getBookByIsbn() throws Exception {
+		String isbn = "1230";
+		when(repository.findByIsbn(isbn)).thenReturn(Optional.of(Book.builder().id(1l).isbn(isbn).build()));
+		
+		Optional<Book> book = service.getBookByIsbn(isbn);
+		
+		assertThat(book.isPresent()).isTrue();
+		assertThat(book.get().getId()).isEqualTo(1l);
+		assertThat(book.get().getIsbn()).isEqualTo(isbn);
+		
+		verify(repository, times(1)).findByIsbn(isbn);
 	}
 	
 }

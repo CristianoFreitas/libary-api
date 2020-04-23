@@ -1,4 +1,4 @@
-package com.br.libraryapi.api.service.impl;
+package com.br.libraryapi.service.impl;
 
 import java.util.Optional;
 
@@ -66,6 +66,6 @@ public class BookServiceImpl implements BookService {
 
 	@Override
 	public Optional<Book> getBookByIsbn(String isbn) {
-		return null;
+		return repository.findByIsbn(isbn);
 	}
 }

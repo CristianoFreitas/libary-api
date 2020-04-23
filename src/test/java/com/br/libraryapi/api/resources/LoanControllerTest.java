@@ -1,6 +1,12 @@
 package com.br.libraryapi.api.resources;
 
+import static com.br.libraryapi.service.LoanServiceTest.createLoan;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -21,6 +30,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import com.br.libraryapi.api.dto.LoanDTO;
+import com.br.libraryapi.api.dto.LoanFilterDTO;
+import com.br.libraryapi.api.dto.ReturnedLoanDTO;
 import com.br.libraryapi.exception.BusinessException;
 import com.br.libraryapi.model.entity.Book;
 import com.br.libraryapi.model.entity.Loan;
@@ -50,7 +61,7 @@ public class LoanControllerTest {
 	@DisplayName("Deve realizar emprestimos")
 	public void createLoanTest() throws Exception {
 		
-		LoanDTO dto = LoanDTO.builder().isbn("123").customer("Beltrano").build();
+		LoanDTO dto = LoanDTO.builder().isbn("123").customerEmail("customer@email.com").customer("Beltrano").build();
 		String json = new ObjectMapper().writeValueAsString(dto);
 		
 		Book book = Book.builder().id(1l).isbn("123").build();
@@ -118,4 +129,72 @@ public class LoanControllerTest {
 				.andExpect( MockMvcResultMatchers.jsonPath("errors[0]").value("Book already loaned"));
 	}
 
+	@Test
+	@DisplayName("Deve retornar um livro")
+	public void returnBookTest() throws Exception {
+			
+		ReturnedLoanDTO dto = ReturnedLoanDTO.builder().returned(true).build();
+		String json = new ObjectMapper().writeValueAsString(dto);
+		
+		Loan loan = Loan.builder().id(1l).build();
+		BDDMockito.given(loanService.getById(Mockito.any())).willReturn(Optional.of(loan));
+		
+		mvc.perform(
+				MockMvcRequestBuilders.patch(LOAN_API.concat("/1"))
+				.accept(MediaType.APPLICATION_JSON)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(json))
+		.andExpect(MockMvcResultMatchers.status().isOk());
+		
+		Mockito.verify(loanService, Mockito.times(1)).update(loan);
+	}
+	
+	@Test
+	@DisplayName("Deve retornar 404 quanto tentar devolver um livro inexistente")
+	public void returnInexistentBookTest() throws Exception {
+			
+		ReturnedLoanDTO dto = ReturnedLoanDTO.builder().returned(true).build();
+		String json = new ObjectMapper().writeValueAsString(dto);
+		
+		BDDMockito.given(loanService.getById(Mockito.any())).willReturn(Optional.empty());
+		
+		mvc.perform(
+				MockMvcRequestBuilders.patch(LOAN_API.concat("/1"))
+				.accept(MediaType.APPLICATION_JSON)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(json))
+		.andExpect(MockMvcResultMatchers.status().isNotFound());
+		
+	}
+	
+	@Test
+	@DisplayName("Deve filtrar livros")
+	public void findBooks() throws Exception {
+		
+		Long id = 1l;
+		
+		Loan loan = createLoan();
+		loan.setId(id);
+		Book book = Book.builder().id(id).isbn("321").build();
+		loan.setBook(book);
+				
+		BDDMockito.given( loanService.find( Mockito.any(LoanFilterDTO.class) , Mockito.any( Pageable.class)))
+			.willReturn(new PageImpl<Loan>( Arrays.asList(loan) , PageRequest.of(0, 10), 1));
+		
+		String queryString = String.format("?isbn=%s&customer=%s&page=0&size=10", 
+					book.getIsbn(), loan.getCustomer());
+		
+		MockHttpServletRequestBuilder request = MockMvcRequestBuilders
+				.get(LOAN_API.concat(queryString))
+				.accept(MediaType.APPLICATION_JSON);
+		
+		mvc
+			.perform( request )
+			.andExpect( status().isOk() )
+			.andExpect( jsonPath("content", hasSize(1)))
+			.andExpect( jsonPath( "totalElements").value(1))
+			.andExpect( jsonPath( "pageable.pageSize").value(10))
+			.andExpect( jsonPath( "pageable.pageNumber").value(0));	
+		
+	}
 }
